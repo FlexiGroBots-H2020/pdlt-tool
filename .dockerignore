@@ -1,0 +1,6 @@
+#folders to be ignored
+/datasets
+/debug
+/detectron2
+/input
+/output

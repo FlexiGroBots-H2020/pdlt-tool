@@ -1,0 +1,95 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "calibration",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--config-file",
+                "Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml",
+                "--video-input",
+                "input/calibrate",
+                "--output",
+                "output/calibration",
+                "--vocabulary",
+                "custom",
+                "--custom_vocabulary",
+                "mug",
+                "--confidence-threshold",
+                "0.2",
+                "--nms_max_overlap",
+                "0.3",
+                "--max_cosine_distance",
+                "0.7",
+                "--num_samples",
+                "2",
+                "--opts",
+                "MODEL.WEIGHTS",
+                "models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth"
+            ]
+            
+        },
+        {
+            "name": "inference",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--config-file",
+                "Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml",
+                "--video-input",
+                "input/videos/vendimia_1.mp4",
+                "--output",
+                "output",
+                "--vocabulary",
+                "custom",
+                "--custom_vocabulary",
+                "people,suitcase",
+                "--confidence-threshold",
+                "0.2",
+                "--nms_max_overlap",
+                "0.3",
+                "--max_cosine_distance",
+                "0.7",
+                "--opts",
+                "MODEL.WEIGHTS",
+                "models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth"
+            ]
+            
+        },
+        {
+            "name": "inference_webcam",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--config-file",
+                "Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml",
+                "--webcam", "0",
+                "--output",
+                "output",
+                "--vocabulary",
+                "custom",
+                "--custom_vocabulary",
+                "mug",
+                "--confidence-threshold",
+                "0.3",
+                "--opts",
+                "MODEL.WEIGHTS",
+                "models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth"
+            ]
+            
+        }
+    ]
+}

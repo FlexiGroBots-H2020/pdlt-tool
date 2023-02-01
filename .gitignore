@@ -1,0 +1,11 @@
+# folders to ignore
+data/
+datasets/
+debug/
+models/
+__pycache__/
+output/
+input/
+# files to ignored
+distance_calibration_function.npy
+calibration.png
