@@ -178,3 +178,4 @@ def get_color_for(class_num):
     rgb = tuple(int(hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
 
     return rgb
+

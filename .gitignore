@@ -9,3 +9,5 @@ input/
 # files to ignored
 distance_calibration_function.npy
 calibration.png
+runs/
+trackers/strongsort/weights

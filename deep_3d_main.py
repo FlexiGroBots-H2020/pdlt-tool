@@ -111,9 +111,9 @@ def get_parser():
                         help='Maximum size of the appearance descriptors allery. If None, no budget is enforced.')
     parser.add_argument('--max_iou_distance', type=float, default=0.8,
                         help='maxima iou distance between consecutive tracks')
-    parser.add_argument('--max_age', type=int, default=100,
+    parser.add_argument('--max_age', type=int, default=50,
                         help='iterations that a unactive track remains until its deletion')
-    parser.add_argument('--n_init', type=int, default=7,
+    parser.add_argument('--n_init', type=int, default=5,
                         help='num of detections of the same object until consider it a track')
     parser.add_argument(
         "--clip_feature_extractor",
@@ -122,7 +122,9 @@ def get_parser():
         help="Clip model to implement the DEEP part of the DeepSORT",
     )
     
-    parser.add_argument("--debug", help="Path to debug folder.", default=None)
+    parser.add_argument('--debug', help="Path to debug folder.", default=None)
+    parser.add_argument('--desired_fps', type=int, default=0,
+                        help='number of frame fps to be proccessed')
     return parser
 
 
@@ -299,17 +301,24 @@ if __name__ == "__main__":
         video = cv2.VideoCapture(args.video_input)
         width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = video.get(cv2.CAP_PROP_FPS)
+        original_fps = video.get(cv2.CAP_PROP_FPS)
         num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         basename = os.path.basename(args.video_input)
+        
+        # Calculate the number of frames to skip to get the desired fps
+        if args.desired_fps == 0:
+            desired_fps = original_fps
+        else: 
+            desired_fps = args.desired_fps
+        frame_skip = round(original_fps / desired_fps)
 
         # Create Videowriters to generate video output
         file_ext = ".avi"
         path_out_vis = os.path.join(args.output, basename.split(".")[0] + file_ext)
         path_out_depth = os.path.join(args.output, basename.split(".")[0] + "_depth" + file_ext)
-        output_file_vis = cv2.VideoWriter(path_out_vis, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps,
+        output_file_vis = cv2.VideoWriter(path_out_vis, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), desired_fps,
                                           (width, height))
-        output_file_depth = cv2.VideoWriter(path_out_depth, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps,
+        output_file_depth = cv2.VideoWriter(path_out_depth, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), desired_fps,
                                             (width, height)) # ,0 add last parameter if one chanel output desired
 
         # Processing loop
@@ -318,6 +327,9 @@ if __name__ == "__main__":
             ret, frame = video.read()
             if frame is None:
                 break
+            if frame_count % frame_skip != 0:
+                frame_count += 1
+                continue
             # predict depth map
             img_depth, prediction_depth = estimator_deep.estimate(frame)
             # predict detections DETIC

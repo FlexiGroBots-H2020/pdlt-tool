@@ -47,19 +47,21 @@
                 "--config-file",
                 "Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml",
                 "--video-input",
-                "input/videos/vendimia_1.mp4",
+                "input/videos/IMG_1938.mp4",
                 "--output",
                 "output",
                 "--vocabulary",
                 "custom",
                 "--custom_vocabulary",
-                "people,suitcase",
+                "people, tractor",
                 "--confidence-threshold",
-                "0.2",
+                "0.3",
                 "--nms_max_overlap",
                 "0.3",
                 "--max_cosine_distance",
                 "0.7",
+                "--desired_fps",
+                "25",
                 "--opts",
                 "MODEL.WEIGHTS",
                 "models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth"
@@ -88,6 +90,24 @@
                 "--opts",
                 "MODEL.WEIGHTS",
                 "models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth"
+            ]
+            
+        }
+        ,
+        {
+            "name": "inference_RT",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--yolo-weights", "yolov8l-seg.pt",
+                "--source", "input/VID_20230328_124524.mp4",
+                "--tracking-method", "bytetrack",
+                "--hide-conf",
+                "--conf-thres", "0.3",
+                "--save-vid" 
             ]
             
         }
