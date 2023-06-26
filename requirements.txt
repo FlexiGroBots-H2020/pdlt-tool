@@ -22,3 +22,11 @@ filterpy
 kserve==0.7.0
 piexif
 paho-mqtt
+fairscale
+thop
+easydict
+lap
+tqdm
+ipython
+sentry-sdk
+psutil

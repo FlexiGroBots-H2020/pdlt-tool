@@ -14,6 +14,9 @@ import numpy as np
 from pathlib import Path
 import torch
 import torch.backends.cudnn as cudnn
+import time
+import paho.mqtt.publish as publish
+import json
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 strongsort root directory
@@ -45,6 +48,8 @@ from DPT.run_monodepth_single import DeepEstimator
 from deep_3d_utils import detections_depth, correct_distance_calibration
 from yolo_utils import scale_masks
 
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 
 @torch.no_grad()
 def run(
@@ -64,6 +69,7 @@ def run(
         save_crop=False,  # save cropped prediction boxes
         save_trajectories=False,  # save trajectories for each track
         save_vid=False,  # save confidences in --save-txt labels
+        save_json=False,
         nosave=False,  # do not save images/videos
         classes=None,  # filter by class: --class 0, or --class 0 2 3
         agnostic_nms=False,  # class-agnostic NMS
@@ -81,6 +87,13 @@ def run(
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
         retina_masks=False,
+        safe_distance=1,
+        mqtt_output=False,  
+        mqtt_topic="topic",
+        robot_id="id",
+        fps_stream=10,
+        seconds_buffer=20,
+
 ):
 
     source = str(source)
@@ -100,7 +113,7 @@ def run(
         exp_name = 'ensemble'
     exp_name = name if name else exp_name + "_" + reid_weights.stem
     save_dir = increment_path(Path(project) / exp_name, exist_ok=exist_ok)  # increment run
-    (save_dir / 'tracks' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    (save_dir / 'tracks' if (save_txt or save_json) else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     # Load model
     device = select_device(device)
@@ -121,7 +134,8 @@ def run(
     # Dataloader
     bs = 1
     if webcam:
-        show_vid = check_imshow(warn=True)
+        #show_vid = check_imshow(warn=True)
+        show_vid = False #in Docker not GUI 
         dataset = LoadStreams(
             source,
             imgsz=imgsz,
@@ -160,6 +174,7 @@ def run(
     for frame_idx, batch in enumerate(dataset):
         path, im, im0s, vid_cap, s = batch
         # Generate the image processed to display issues
+        im = im[0]
         im_yolo = cv2.cvtColor(np.transpose(im, (1, 2, 0)), cv2.COLOR_BGR2RGB)
         visualize = increment_path(save_dir / Path(path[0]).stem, mkdir=True) if visualize else False
         with dt[0]:
@@ -218,6 +233,12 @@ def run(
                 if prev_frames[i] is not None and curr_frames[i] is not None:  # camera motion compensation
                     tracker_list[i].tracker.camera_update(prev_frames[i], curr_frames[i])
 
+            detections_json = {
+                "time": time.time(),
+                "frame": dataset.count,
+                "detections": []
+            }
+
             if det is not None and len(det):
                 if is_seg:
                     shape = im0.shape
@@ -267,21 +288,46 @@ def run(
                         conf = output[6]
                         depth = output[7]
 
-                        if save_txt:
+                        if save_txt or mqtt_output:
                             # to MOT format
                             bbox_left = output[0]
                             bbox_top = output[1]
                             bbox_w = output[2] - output[0]
                             bbox_h = output[3] - output[1]
-                            # Write MOT compliant results to file
-                            with open(txt_path + '.txt', 'a') as f:
-                                f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, bbox_left,  # MOT format
-                                                               bbox_top, bbox_w, bbox_h, -1, -1, -1, i))
+                            # Write output results to file
+                            c = int(cls)  # integer class
+                            id = int(id)  # integer id
+                            if depth < safe_distance:
+                                dist_txt = '~caution '
+                            else:
+                                dist_txt = '~safe '
+                            dist_txt += f'{depth:.1f}m'
+                            label = None if hide_labels else (f'{id} {names[c]} {dist_txt}' if hide_conf else \
+                                (f'{id} {conf:.2f} {dist_txt}' if hide_class else f'{id} {names[c]} {conf:.2f} {dist_txt}'))
+                            
+                            if save_txt:
+                                # Write MOT compliant results to file
+                                with open(txt_path + '.txt', 'a+') as f:
+                                    f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, bbox_left,  # MOT format
+                                                                bbox_top, bbox_w, bbox_h, -1, -1, -1, i))
+                                    
+                            detection = {
+                                'bbox': str([bbox_left, bbox_top, bbox_w, bbox_h]),  
+                                'distance': f'{depth:.1f}m',
+                                'distance_awareness': dist_txt,  
+                                'msg': label,  
+                                'class': names[c], 
+                                'class_id': id, 
+                                'conf': f'{conf:.2f}',
+                            }
+
+                            json_str = json.dumps(detection)
+                                
+                            detections_json["detections"].append(json_str)
 
                         if save_vid or save_crop or show_vid:  # Add bbox/seg to image
                             c = int(cls)  # integer class
                             id = int(id)  # integer id
-                            safe_distance = 1
                             if depth < safe_distance:
                                 dist_txt = '~caution '
                             else:
@@ -328,14 +374,50 @@ def run(
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         w_d, h_d = im_yolo.shape[1], im_yolo.shape[0]
                     else:  # stream
-                        fps, w, h = 30, im0.shape[1], im0.shape[0]
+                        fps, w, h = fps_stream, im0.shape[1], im0.shape[0]
                         w_d, h_d = im_yolo.shape[1], im_yolo.shape[0]
-                    save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
-                    vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer_dp[i] = cv2.VideoWriter(vid_dp_path[i], cv2.VideoWriter_fourcc(*'mp4v'), fps, (w_d, h_d))
+                    vid_path_ext = str(Path(vid_path[i]).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
+                    vid_dp_path_ext = str(Path(vid_dp_path[i]).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
+                    vid_writer[i] = cv2.VideoWriter(vid_path_ext, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                    vid_writer_dp[i] = cv2.VideoWriter(vid_dp_path_ext, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w_d, h_d))
                 vid_writer[i].write(im0)
                 heatmap = cv2.applyColorMap(((img_depth / 257).astype("uint8")), cv2.COLORMAP_JET)
                 vid_writer_dp[i].write(heatmap)  # imwrite only supports uint8
+                # save actual videos and start other
+                if (frame_idx % (fps_stream * seconds_buffer)) == 0:
+                    if isinstance(vid_writer[i], cv2.VideoWriter):
+                        vid_writer[i].release()  # release previous video writer
+                        vid_writer_dp[i].release()  # release previous video writer
+                    save_path_vid = vid_path[i] + f"_buffered.mp4"
+                    save_path_vid_dp = vid_dp_path[i] + f"_buffered.mp4"
+                    os.rename(vid_path_ext, save_path_vid)
+                    os.rename(vid_dp_path_ext, save_path_vid_dp)
+                    logging.info("Video buffered")
+                    # reopen the live ones
+                    vid_writer[i] = cv2.VideoWriter(vid_path_ext, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                    vid_writer_dp[i] = cv2.VideoWriter(vid_dp_path_ext, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w_d, h_d))
+               
+            
+            if mqtt_output:
+                # publish only 1 msg per second
+                if (frame_idx % (fps_stream)) == 0:
+                    # Publish a message 
+                    start_time = time.time()
+                    mqtt_topic_publish = os.path.join(mqtt_topic, robot_id)
+                    client_id = robot_id + str(source)
+                    dict_out = json.dumps(detections_json)
+                    publish.single(mqtt_topic_publish, 
+                                json.dumps(dict_out), 
+                                hostname=os.getenv('BROKER_ADDRESS'), 
+                                port=int(os.getenv('BROKER_PORT')), 
+                                client_id=client_id, 
+                                auth = {"username": os.getenv('BROKER_USER'), "password": os.getenv('BROKER_PASSWORD')} )
+                    encode_time = time.time() - start_time
+                    logging.info(f"Publish out time: {encode_time:.2f}s")
+                    if save_json:
+                        with open(txt_path + '.json', 'a+') as f:
+                            f.write(dict_out)
+
 
             prev_frames[i] = curr_frames[i]
             
@@ -370,6 +452,7 @@ def parse_opt():
     parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
     parser.add_argument('--save-trajectories', action='store_true', help='save trajectories for each track')
     parser.add_argument('--save-vid', action='store_true', help='save video tracking results')
+    parser.add_argument('--save-json', action='store_true', help='save json output results')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     # class 0 is person, 1 is bycicle, 2 is car... 79 is oven
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
@@ -388,6 +471,13 @@ def parse_opt():
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
     parser.add_argument('--retina-masks', action='store_true', help='whether to plot masks in native resolution')
+    parser.add_argument('--safe-distance', type=float, default=1, help='min distance to be considered as safe')
+    parser.add_argument('--mqtt_output', default=False, action='store_true', help='send output to mqtt topic')
+    parser.add_argument('--mqtt_topic', default='common-apps/modtl-model/output', help='output topic name')
+    parser.add_argument('--robot_id', default='robot_A', help='device id')
+    parser.add_argument('--fps-stream', type=int, default=5, help='frames per second of the streaming')
+    parser.add_argument('--seconds-buffer', type=int, default=30, help='video seconds buffered')
+    
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     opt.tracking_config = ROOT / 'trackers' / opt.tracking_method / 'configs' / (opt.tracking_method + '.yaml')

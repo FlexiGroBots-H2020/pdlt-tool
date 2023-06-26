@@ -103,13 +103,16 @@
             "justMyCode": true,
             "args": [
                 "--yolo-weights", "yolov8l-seg.pt",
-                "--source", "input/VID_20230328_124524.mp4",
+                "--source", "0",
                 "--tracking-method", "bytetrack",
                 "--hide-conf",
                 "--conf-thres", "0.3",
-                "--save-vid" 
+                "--safe-distance", "1.5",
+                "--save-vid",
+                "--mqtt_output",
+                "--mqtt_topic", "common-apps/modtl-model/output",
+                "--robot_id", "tractor_A"
             ]
-            
         }
     ]
 }

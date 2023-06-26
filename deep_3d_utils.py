@@ -37,6 +37,8 @@ def detections_depth(frame, img_depth, masks, bboxes, frame_count, erode_iter=1,
 
 def mean_detection_depth(img, bbox, bf_erode):
     xmin, ymin, xmax, ymax = bbox.astype("int")
+    if ymax >= img.shape[0]: ymax= img.shape[0] #avoid problems with rounding issues
+    if xmax >= img.shape[1]: xmax= img.shape[1] #avoid problems with rounding issues
     sum = 0
     count = 0
     for ii in range(xmin, xmax):
