@@ -5,9 +5,23 @@ import discorpy.proc.processing as proc
 import discorpy.post.postprocessing as post
 import scipy.ndimage as ndi
 import cv2
+import io as ioo
 
 import argparse
+from PIL import Image
 
+def numpy_array_to_image_file(array):
+    # Convertir el array de Numpy a un objeto PIL Image
+    image = Image.fromarray(array.astype(np.uint8))
+
+    # Guardar el objeto PIL Image en un buffer de bytes en formato PNG
+    buffer = ioo.BytesIO()
+    image.save(buffer, format="PNG")
+
+    # Mover el cursor del buffer al inicio
+    buffer.seek(0)
+
+    return buffer
 
 def find_point_to_point(points, xcenter, ycenter, list_fact):
     xi, yi = points[1] - xcenter, points[0] - ycenter
@@ -32,11 +46,27 @@ def calculate_padding(height, width, xcenter, ycenter, list_ffact):
 def apply_grid_wrap(xcenter, ycenter, list_coef, list_power, mat0, mat_pad, pad):
     (height, width) = mat0.shape
     list_ffact = list_power * list_coef
-    line_img_warped = post.unwarp_image_backward(mat_pad, xcenter + pad,
-                                                ycenter + pad, list_ffact)
+
+    # Unwarp the padded grid image using the provided parameters
+    line_img_warped = post.unwarp_image_backward(mat_pad, xcenter + pad, ycenter + pad, list_ffact)
+    
+    # Crop the unwrapped image to match the original image dimensions
     line_img_warped = line_img_warped[pad:pad + height, pad:pad + width]
 
-    return (mat0 + 0.5 * line_img_warped)
+    # Calculate the number of tiles needed in each dimension to cover mat0
+    tiles_y = int(np.ceil(height / line_img_warped.shape[0]))
+    tiles_x = int(np.ceil(width / line_img_warped.shape[1]))
+
+    # Tile the line_img_warped to cover the whole area of mat0
+    tiled_pattern = np.tile(line_img_warped, (tiles_y, tiles_x))
+
+    # Crop the tiled pattern to match the exact shape of mat0 if necessary
+    tiled_pattern_cropped = tiled_pattern[:height, :width]
+
+    # Now you can safely add the pattern to mat0
+    result = mat0 + 0.5 * tiled_pattern_cropped
+
+    return result
 
 # Define scanning routines
 def scan_coef(xcenter, ycenter, idx, start, stop, step, list_coef, list_power, output_base0, mat0,
@@ -107,6 +137,7 @@ def scan_center(xcenter, ycenter, start, stop, step, list_coef, list_power,
                 io.save_image(output_base + "/backward/img_" + name + ".jpg",  img_unwarped)
 
 def unwarp_image(xcenter, ycenter, list_coef, list_power, image_path, width, height):
+    
     # Get a good estimation of the forward model
     list_ffact = list_coef * list_power
 
