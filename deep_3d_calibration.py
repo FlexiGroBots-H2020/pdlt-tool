@@ -115,7 +115,7 @@ def get_calibration_func(e_vals, r_vals, save=False, file_name=None):
     return p
 
 
-def get_measures(args, cfg, video_path, num_samples=10, init_frames=3):
+def get_measures(args, cfg, video_path, num_samples=10, init_frames=0):
     # set video input parameters
     video = cv2.VideoCapture(video_path)
     width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -161,7 +161,7 @@ def get_measures(args, cfg, video_path, num_samples=10, init_frames=3):
         "cosine", max_cosine_distance, nn_budget)
 
     # initialize tracker
-    tracker = Tracker(metric, max_iou_distance=0.7, max_age=30, n_init=3)
+    tracker = Tracker(metric, max_iou_distance=0.7, max_age=30, n_init=0)
 
     frame_count = 0
     measures = []
@@ -174,7 +174,7 @@ def get_measures(args, cfg, video_path, num_samples=10, init_frames=3):
         if frame is None:
             break
         # predict depth map
-        img_depth, predict_depth = estimator_deep.estimate(frame)
+        img_depth = estimator_deep.estimate(frame)
         # predict detections DETIC
         start_time = time.time()
         predictions, visualized_output = detic_predictor.run_on_image(frame)
@@ -219,7 +219,7 @@ def get_measures(args, cfg, video_path, num_samples=10, init_frames=3):
         else:
             output_file_depth.write(img_depth.astype("uint8"))
 
-        if frame_count > init_frames:
+        if frame_count >= init_frames:
             num_measures = num_measures + 1
             measures.append((tracker.tracks[0].depth))
 
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     aux = [0]
     estimated_vals = aux + measure_depths
     real_vals = aux + real_depths
-    d_calibration_file = 'distance_calibration_function.npy'
+    d_calibration_file = 'distance_calibration_function_tractor.npy'
     # Get distance calibration function
     d_calibration = get_calibration_func(estimated_vals, real_vals, True, d_calibration_file)
 

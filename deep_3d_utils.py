@@ -181,3 +181,18 @@ def get_color_for(class_num):
 
     return rgb
 
+def replace_inf_with_max(tensor):
+    # Comprobar si el tensor es de tipo flotante
+    if tensor.dtype not in [torch.float16, torch.float32, torch.float64]:
+        raise ValueError("El tensor debe ser de tipo flotante")
+
+    # Encuentra los valores infinitos en el tensor
+    mask = torch.isinf(tensor)
+
+    # Obtiene el valor máximo que puede representar el tipo de datos del tensor
+    max_value = torch.finfo(tensor.dtype).max
+
+    # Reemplaza los valores infinitos con el valor máximo
+    tensor[mask] = max_value
+
+    return tensor

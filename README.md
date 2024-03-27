@@ -1,5 +1,9 @@
 Situational awareness: people/object detection, tracking and depth estimation with monocular camera
 
+ docker run --name d3d -v $(pwd):/wd --gpus all --network host --device=/dev/video0:/dev/video0 --group-add=video deep3d:v0
+ docker run --name d3d -v $(pwd):/wd --gpus all --network host --device=/dev/video0:/dev/video0 --group-add=video -e DISPLAY=host.docker.internal:0 -v /tmp/.X11-unix:/tmp/.X11-unix deep3d:v0
+
+
 *video*
 
 docker pull ghcr.io/flexigrobots-h2020/gsaw-tool:v0

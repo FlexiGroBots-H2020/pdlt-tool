@@ -29,10 +29,10 @@ class Detection(object):
     """
 
     def __init__(self, tlwh, confidence, class_num, feature, depth=0):
-        self.tlwh = np.asarray(tlwh.cpu(), dtype=np.float)
+        self.tlwh = np.asarray(tlwh.cpu(), dtype=float)
         self.confidence = float(confidence.cpu().numpy())
         self.class_num = class_num.cpu().numpy()
-        self.feature = np.asarray(feature, dtype=np.float32)
+        self.feature = np.asarray(feature, dtype=float)
         self.depth = depth
 
     def to_tlbr(self):

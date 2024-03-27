@@ -15,13 +15,13 @@
                 "--config-file",
                 "Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml",
                 "--video-input",
-                "input/calibrate",
+                "input/calibrate/tractor",
                 "--output",
-                "output/calibration",
+                "output/calibration/tractor",
                 "--vocabulary",
                 "custom",
                 "--custom_vocabulary",
-                "mug",
+                "people",
                 "--confidence-threshold",
                 "0.2",
                 "--nms_max_overlap",
@@ -29,7 +29,7 @@
                 "--max_cosine_distance",
                 "0.7",
                 "--num_samples",
-                "2",
+                "3",
                 "--opts",
                 "MODEL.WEIGHTS",
                 "models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth"
@@ -102,17 +102,46 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--yolo-weights", "yolov8l-seg.pt",
-                "--source", "0",
+                "--yolo-weights", "yolov8x-seg.pt",
+                "--source", "input/video_hall_train.mp4",
                 "--tracking-method", "bytetrack",
                 "--hide-conf",
-                "--conf-thres", "0.3",
-                "--safe-distance", "1.5",
+                "--imgsz", "1024", 
+                "--conf-thres", "0.05",
+                "--safe-distance", "3",
                 "--save-vid",
-                "--mqtt_output",
-                "--mqtt_topic", "common-apps/modtl-model/output",
-                "--robot_id", "tractor_A"
+                "--depth_model", "depthAnything",
+                "--depth_scenario", "outdoor",
+                "--classes","0", "1", "2", "3", "24", "26" ,"28" ,"6",
+                "--hide-conf",  
+                "--hide-class",
+                "--xyz_graphs",
+                "--alpha_weight","0.05",
             ]
+        },
+        {
+            "name": "perspective",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--video_path", "input/min_distorsion_ipsoteck_2.png"
+            ]
+               
+        },
+        {
+            "name": "discorpy",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--image_path", "input/min_distorsion_ipsoteck_2.png"
+            ]
+               
         }
     ]
 }

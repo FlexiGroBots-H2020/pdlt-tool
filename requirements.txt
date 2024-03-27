@@ -4,7 +4,7 @@ onnx
 clip-retrieval
 img2dataset
 opencv-contrib-python-headless
-pyyaml==5.1
+pyyaml
 Pillow
 mss
 timm
@@ -15,11 +15,11 @@ fasttext
 scikit-learn
 lvis
 nltk
-git+https://github.com/openai/CLIP.git
-git+https://github.com/facebookresearch/detectron2.git
+#git+https://github.com/openai/CLIP.git
+#git+https://github.com/facebookresearch/detectron2.git
 fiftyone
 filterpy
-kserve==0.7.0
+kserve
 piexif
 paho-mqtt
 fairscale
@@ -30,3 +30,4 @@ tqdm
 ipython
 sentry-sdk
 psutil
+discorpy

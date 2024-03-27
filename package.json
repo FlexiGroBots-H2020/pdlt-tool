@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "roboflow-cli": "^0.0.18"
+  }
+}
